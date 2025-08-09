@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Image Text Replacer</title>
+<style>
+    body { font-family: Arial; text-align: center; background: #111; color: white; padding: 20px; }
+    input, select, button { padding: 8px; margin: 5px; border-radius: 5px; border: none; }
+    canvas { border: 2px solid white; margin-top: 15px; max-width: 100%; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js"></script>
+</head>
+<body>
+<h1>🖼 Text Replacer (Custom Style)</h1>
+
+<!-- Upload Image -->
+<input type="file" id="imageUpload" accept="image/*"><br>
+
+<!-- New Text -->
+<input type="text" id="newText" placeholder="Enter new text"><br>
+
+<!-- Font Family -->
+<select id="fontFamily">
+    <option value="Arial">Arial</option>
+    <option value="Times New Roman">Times New Roman</option>
+    <option value="Verdana">Verdana</option>
+    <option value="Courier New">Courier New</option>
+    <option value="Georgia">Georgia</option>
+</select>
+
+<!-- Text Color -->
+<input type="color" id="textColor" value="#000000">
+
+<!-- Bold / Italic -->
+<label><input type="checkbox" id="bold"> Bold</label>
+<label><input type="checkbox" id="italic"> Italic</label>
+
+<!-- Replace Button -->
+<button id="replaceBtn">Replace</button><br>
+
+<!-- Canvas -->
+<canvas id="canvas"></canvas>
+
+<script>
+let canvas = document.getElementById("canvas");
+let ctx = canvas.getContext("2d");
+let img = new Image();
+let imageLoaded = false;
+
+document.getElementById("imageUpload").addEventListener("change", function(e) {
+    let file = e.target.files[0];
+    let reader = new FileReader();
+    reader.onload = function(event) {
+        img.onload = function() {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            imageLoaded = true;
+        }
+        img.src = event.target.result;
+    }
+    reader.readAsDataURL(file);
+});
+
+document.getElementById("replaceBtn").addEventListener("click", function() {
+    if (!imageLoaded) return alert("Please upload an image first!");
+    let newText = document.getElementById("newText").value;
+    if (!newText) return alert("Please enter new text!");
+
+    let fontFamily = document.getElementById("fontFamily").value;
+    let textColor = document.getElementById("textColor").value;
+    let bold = document.getElementById("bold").checked ? "bold" : "";
+    let italic = document.getElementById("italic").checked ? "italic" : "";
+
+    Tesseract.recognize(img.src, 'eng', { logger: m => console.log(m) }).then(({ data: { words } }) => {
+        ctx.drawImage(img, 0, 0);
+        if (words.length === 0) return alert("No text detected!");
+
+        let firstWord = words[0];
+        let textHeight = firstWord.bbox.y1 - firstWord.bbox.y0;
+
+        // Remove old text
+        ctx.fillStyle = "white";
+        ctx.fillRect(firstWord.bbox.x0, firstWord.bbox.y0, firstWord.bbox.x1 - firstWord.bbox.x0, textHeight);
+
+        // Draw new text
+        ctx.fillStyle = textColor;
+        ctx.font = `${italic} ${bold} ${textHeight}px ${fontFamily}`;
+        ctx.fillText(newText, firstWord.bbox.x0, firstWord.bbox.y1 - 5);
+
+        alert("Text replaced with custom style!");
+    }).catch(err => {
+        console.error(err);
+        alert("Error processing image.");
+    });
+});
+</script>
+</body>
+</html>
