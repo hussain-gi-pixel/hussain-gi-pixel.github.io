@@ -1,98 +1,470 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-<title>Image Text Replacer</title>
-<style>
-    body { font-family: Arial; text-align: center; background: #111; color: white; padding: 20px; }
-    input, select, button { padding: 8px; margin: 5px; border-radius: 5px; border: none; }
-    canvas { border: 2px solid white; margin-top: 15px; max-width: 100%; }
-</style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Image Text Replacer — Tons of Fonts</title>
+
+<!-- Tesseract and WebFontLoader -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
+
+<style>
+  :root{
+    --card-bg: rgba(255,255,255,0.06);
+    --accent: linear-gradient(135deg,#6a11cb 0%,#2575fc 100%);
+    --glass: rgba(255,255,255,0.04);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; font-family:Inter,system-ui,Segoe UI,Arial;
+    background: radial-gradient(circle at 10% 10%, #0f172a 0%, #071028 40%, #04060a 100%);
+    color:#e6eef8;
+    display:flex; gap:20px; align-items:flex-start; justify-content:center; padding:28px;
+  }
+
+  .panel{
+    width:420px; background:var(--card-bg); border-radius:14px; padding:18px; backdrop-filter: blur(6px);
+    box-shadow: 0 8px 30px rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.03);
+  }
+  h1{margin:0 0 12px; font-size:20px; letter-spacing:0.2px}
+  label{display:block; font-size:13px; margin:8px 0 6px; color:#cfe0ff}
+  input[type=file]{width:100%}
+  .controls{display:grid; grid-template-columns:1fr 1fr; gap:8px; align-items:center}
+  select, input[type=color], input[type=text], button, .small-btn{
+    width:100%; padding:8px 10px; border-radius:8px; border:none; font-size:14px;
+    background:var(--glass); color:inherit;
+  }
+  .row{display:flex; gap:8px}
+  button{cursor:pointer; background:var(--accent); color:white; font-weight:700; border:none; padding:10px; border-radius:10px}
+  button:active{transform:translateY(1px)}
+  .canvas-wrap{flex:1; max-width:900px; display:flex; flex-direction:column; align-items:center; gap:10px}
+  canvas{border-radius:8px; max-width:100%; box-shadow:0 10px 30px rgba(0,0,0,0.6);}
+  .meta{font-size:13px; color:#9fb7ff}
+  .fonts-list{height:140px; overflow:auto; background:rgba(0,0,0,0.08); padding:8px; border-radius:8px}
+  .font-item{padding:6px; cursor:pointer; border-radius:6px; margin-bottom:4px}
+  .font-item:hover{outline:2px solid rgba(255,255,255,0.06)}
+  .selected{outline:2px solid rgba(255,255,255,0.12)}
+  .small{font-size:13px; padding:6px}
+  .footer{font-size:12px; color:#9fb7ff; margin-top:8px}
+  .topbar{display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px}
+  .loading{font-size:13px; color:#ffd580}
+</style>
 </head>
 <body>
-<h1>🖼 Text Replacer (Custom Style)</h1>
 
-<!-- Upload Image -->
-<input type="file" id="imageUpload" accept="image/*"><br>
+<!-- Left panel: controls -->
+<div class="panel">
+  <div class="topbar">
+    <h1>Text Replacer — Pick a Style</h1>
+    <div class="meta">Fast • 100+ Fonts • Live preview</div>
+  </div>
 
-<!-- New Text -->
-<input type="text" id="newText" placeholder="Enter new text"><br>
+  <label>Upload image</label>
+  <input id="imageUpload" type="file" accept="image/*">
 
-<!-- Font Family -->
-<select id="fontFamily">
-    <option value="Arial">Arial</option>
-    <option value="Times New Roman">Times New Roman</option>
-    <option value="Verdana">Verdana</option>
-    <option value="Courier New">Courier New</option>
-    <option value="Georgia">Georgia</option>
-</select>
+  <label>Detected words (click a box on the image to select)</label>
+  <div class="meta" id="wordsMeta">No image loaded</div>
 
-<!-- Text Color -->
-<input type="color" id="textColor" value="#000000">
+  <label>New text</label>
+  <input id="newText" type="text" placeholder="Type replacement text">
 
-<!-- Bold / Italic -->
-<label><input type="checkbox" id="bold"> Bold</label>
-<label><input type="checkbox" id="italic"> Italic</label>
+  <div style="display:flex; gap:8px; margin-top:8px;">
+    <div style="flex:1">
+      <label>Color</label>
+      <input id="textColor" type="color" value="#000000">
+    </div>
+    <div style="width:110px">
+      <label>Bg fill</label>
+      <input id="bgColor" type="color" value="#ffffff">
+    </div>
+  </div>
 
-<!-- Replace Button -->
-<button id="replaceBtn">Replace</button><br>
+  <div class="row" style="margin-top:10px;">
+    <div style="flex:1">
+      <label>Weight / Style</label>
+      <div style="display:flex; gap:8px;">
+        <label class="small"><input id="bold" type="checkbox"> Bold</label>
+        <label class="small"><input id="italic" type="checkbox"> Italic</label>
+      </div>
+    </div>
+    <div style="width:160px">
+      <label>Size (px)</label>
+      <input id="sizeRange" type="range" min="6" max="300" value="40">
+    </div>
+  </div>
 
-<!-- Canvas -->
-<canvas id="canvas"></canvas>
+  <label style="margin-top:10px">Font (100+). Click to use. Fonts load when selected.</label>
+  <div class="fonts-list" id="fontsList" tabindex="0"></div>
+
+  <div style="display:flex; gap:8px; margin-top:12px;">
+    <button id="replaceBtn">Replace Selected</button>
+    <button id="autoSizeBtn" class="small-btn">Auto size</button>
+  </div>
+
+  <div class="footer">
+    Tip: Click a detected word on the image first. If OCR missed text, try clearer/cropped image.
+  </div>
+  <div style="height:8px"></div>
+  <div id="status" class="loading"></div>
+</div>
+
+<!-- Right: canvas -->
+<div class="canvas-wrap">
+  <div style="display:flex; gap:10px; align-items:center;">
+    <div style="background:var(--card-bg); padding:8px 12px; border-radius:10px;">
+      <strong id="selectedInfo">No selection</strong> <div class="meta" id="selMeta"></div>
+    </div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+  <div class="meta">Click on the canvas word box to select it. Then change text & style and click <b>Replace Selected</b>.</div>
+</div>
 
 <script>
-let canvas = document.getElementById("canvas");
-let ctx = canvas.getContext("2d");
+/* ---------------------------
+  Fonts list (100+ Google Fonts names)
+   - they will be loaded on demand via WebFont.load when selected
+----------------------------*/
+const fonts = [
+"Roboto","Open Sans","Lato","Montserrat","Source Sans Pro","Poppins","Raleway","Oswald","Merriweather",
+"Ubuntu","PT Sans","Noto Sans","Playfair Display","Nunito","Dancing Script","Pacifico","Anton","Bebas Neue",
+"Fira Sans","Arimo","Rubik","Work Sans","Comfortaa","Cinzel","Bitter","Cabin","Exo 2","Alegreya","Inconsolata",
+"Barlow","Kanit","Quicksand","Muli","Heebo","Libre Baskerville","Electrolize","Satisfy","Varela Round",
+"Josefin Sans","Hind","Catamaran","Amatic SC","Cormorant Garamond","Pinyon Script","Oleo Script","Ropa Sans",
+"Signika","Teko","Archivo","Baloo 2","Manrope","Play","Actor","Mukta","Patua One","Rubik Mono One","Shadows Into Light",
+"Titillium Web","Zilla Slab","K2D","Epilogue","Proza Libre","Inter","IBM Plex Sans","Chakra Petch",
+"Vollkorn","Orbitron","Credit Card Font","Gothic A1","Maven Pro","Domine","Overpass","Nobile","Fruktur",
+"Yanone Kaffeesatz","Imprima","Alice","Gemunu Libre","Trirong","Belleza","Asap","Tinos","Crete Round",
+"Arvo","Spectral","Noticia Text","Marcellus","Righteous","Playfair Display SC","Monda","Gotu","Bowlby One SC",
+"Lora","Fjalla One","Antic Didone","Eczar","Work Sans","Sora","Yeseva One","Poppins" // duplicates are harmless
+];
+// remove duplicates and keep unique
+const uniqFonts = [...new Set(fonts)].slice(0, 160);
+
+/* ---------------------------
+  DOM references + canvas setup
+----------------------------*/
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const imageUpload = document.getElementById('imageUpload');
+const newTextInput = document.getElementById('newText');
+const textColorInput = document.getElementById('textColor');
+const bgColorInput = document.getElementById('bgColor');
+const boldCheckbox = document.getElementById('bold');
+const italicCheckbox = document.getElementById('italic');
+const sizeRange = document.getElementById('sizeRange');
+const fontsListDiv = document.getElementById('fontsList');
+const replaceBtn = document.getElementById('replaceBtn');
+const autoSizeBtn = document.getElementById('autoSizeBtn');
+const statusDiv = document.getElementById('status');
+const wordsMeta = document.getElementById('wordsMeta');
+const selectedInfo = document.getElementById('selectedInfo');
+const selMeta = document.getElementById('selMeta');
+
 let img = new Image();
 let imageLoaded = false;
+let words = []; // OCR words with bbox
+let selectedWord = null; // index
+let imgDataURL = null;
 
-document.getElementById("imageUpload").addEventListener("change", function(e) {
-    let file = e.target.files[0];
-    let reader = new FileReader();
-    reader.onload = function(event) {
-        img.onload = function() {
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
-            imageLoaded = true;
-        }
-        img.src = event.target.result;
-    }
-    reader.readAsDataURL(file);
-});
+/* ---------------------------
+  Render fonts-list as clickable items
+  (we only load the font when user clicks an item)
+----------------------------*/
+function buildFontsList(){
+  uniqFonts.forEach(f => {
+    const div = document.createElement('div');
+    div.className = 'font-item';
+    div.textContent = f;
+    // small sample (will show in default font until loaded)
+    div.addEventListener('click', ()=> selectFont(f, div));
+    fontsListDiv.appendChild(div);
+  });
+}
+buildFontsList();
 
-document.getElementById("replaceBtn").addEventListener("click", function() {
-    if (!imageLoaded) return alert("Please upload an image first!");
-    let newText = document.getElementById("newText").value;
-    if (!newText) return alert("Please enter new text!");
+let loadedFonts = new Set();
+let currentFont = 'Arial';
 
-    let fontFamily = document.getElementById("fontFamily").value;
-    let textColor = document.getElementById("textColor").value;
-    let bold = document.getElementById("bold").checked ? "bold" : "";
-    let italic = document.getElementById("italic").checked ? "italic" : "";
-
-    Tesseract.recognize(img.src, 'eng', { logger: m => console.log(m) }).then(({ data: { words } }) => {
-        ctx.drawImage(img, 0, 0);
-        if (words.length === 0) return alert("No text detected!");
-
-        let firstWord = words[0];
-        let textHeight = firstWord.bbox.y1 - firstWord.bbox.y0;
-
-        // Remove old text
-        ctx.fillStyle = "white";
-        ctx.fillRect(firstWord.bbox.x0, firstWord.bbox.y0, firstWord.bbox.x1 - firstWord.bbox.x0, textHeight);
-
-        // Draw new text
-        ctx.fillStyle = textColor;
-        ctx.font = `${italic} ${bold} ${textHeight}px ${fontFamily}`;
-        ctx.fillText(newText, firstWord.bbox.x0, firstWord.bbox.y1 - 5);
-
-        alert("Text replaced with custom style!");
-    }).catch(err => {
-        console.error(err);
-        alert("Error processing image.");
+function selectFont(fontName, el){
+  status('Loading font: ' + fontName);
+  // load via WebFont loader if not loaded
+  if(!loadedFonts.has(fontName)){
+    WebFont.load({
+      google: { families: [fontName + ':400,700'] },
+      active: function(){
+        loadedFonts.add(fontName);
+        currentFont = fontName;
+        // visually mark selection
+        document.querySelectorAll('.font-item').forEach(n=>n.classList.remove('selected'));
+        el.classList.add('selected');
+        status('Font loaded: ' + fontName);
+        redrawPreview();
+      },
+      inactive: function(){
+        status('Failed to load ' + fontName + ' — using fallback.');
+        currentFont = fontName;
+        el.classList.add('selected');
+        redrawPreview();
+      }
     });
+  } else {
+    currentFont = fontName;
+    document.querySelectorAll('.font-item').forEach(n=>n.classList.remove('selected'));
+    el.classList.add('selected');
+    status('Font selected: ' + fontName);
+    redrawPreview();
+  }
+}
+
+/* ---------------------------
+  Image upload and OCR
+----------------------------*/
+imageUpload.addEventListener('change', (ev)=>{
+  const f = ev.target.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    img.src = e.target.result;
+    imgDataURL = e.target.result;
+    img.onload = function(){
+      setupCanvas();
+      runOCR(imgDataURL);
+    }
+  }
+  reader.readAsDataURL(f);
 });
+
+function setupCanvas(){
+  canvas.width = img.width;
+  canvas.height = img.height;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(img,0,0);
+  imageLoaded = true;
+  words = [];
+  selectedWord = null;
+  wordsMeta.textContent = `Image: ${img.width}×${img.height}`;
+  selMeta.textContent = '';
+  selectedInfo.textContent = 'No selection';
+}
+
+/* ---------------------------
+  OCR using Tesseract
+----------------------------*/
+function runOCR(src){
+  status('Running OCR, please wait...');
+  Tesseract.recognize(src, 'eng', {
+    logger: m => {
+      if(m.status && m.progress) status(`OCR: ${m.status} ${(m.progress*100|0)}%`);
+    }
+  }).then(res=>{
+    // words array includes bbox
+    words = res.data.words || [];
+    status(`OCR done — ${words.length} words detected`);
+    drawWordsOverlay();
+  }).catch(err=>{
+    console.error(err);
+    status('OCR error');
+  });
+}
+
+/* ---------------------------
+  Draw detected word boxes and selection
+----------------------------*/
+function drawWordsOverlay(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(img,0,0);
+  ctx.lineWidth = Math.max(1, canvas.width/600);
+  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillStyle = 'rgba(90,120,255,0.06)';
+
+  words.forEach((w,i)=>{
+    const x = w.bbox.x0, y = w.bbox.y0, wdt = w.bbox.x1 - w.bbox.x0, h = w.bbox.y1 - w.bbox.y0;
+    ctx.fillRect(x,y,wdt,h);
+    ctx.strokeRect(x,y,wdt,h);
+    // lightly show label
+    ctx.font = `${Math.max(10, Math.round(h*0.35))}px Arial`;
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillText(w.text, x+4, y + Math.max(12, Math.round(h*0.7)));
+  });
+
+  // draw selected highlight
+  if(selectedWord !== null && words[selectedWord]){
+    const s = words[selectedWord];
+    ctx.strokeStyle = 'rgba(255,200,100,0.95)';
+    ctx.lineWidth = Math.max(2, canvas.width/300);
+    const x = s.bbox.x0, y = s.bbox.y0, wdt = s.bbox.x1 - s.bbox.x0, h = s.bbox.y1 - s.bbox.y0;
+    ctx.strokeRect(x-2,y-2,wdt+4,h+4);
+  }
+}
+
+/* ---------------------------
+  Canvas click -> select word
+----------------------------*/
+canvas.addEventListener('click', (e)=>{
+  if(!imageLoaded) return;
+  const r = canvas.getBoundingClientRect();
+  const cx = (e.clientX - r.left) * (canvas.width / r.width);
+  const cy = (e.clientY - r.top) * (canvas.height / r.height);
+
+  let found = null;
+  for(let i=0;i<words.length;i++){
+    const w = words[i];
+    if(cx >= w.bbox.x0 && cx <= w.bbox.x1 && cy >= w.bbox.y0 && cy <= w.bbox.y1){
+      found = i; break;
+    }
+  }
+  if(found === null){
+    selectedWord = null;
+    selectedInfo.textContent = 'No selection';
+    selMeta.textContent = '';
+  } else {
+    selectedWord = found;
+    selectedInfo.textContent = 'Selected: "' + words[found].text + '"';
+    selMeta.textContent = `Box: ${Math.round(words[found].bbox.x0)},${Math.round(words[found].bbox.y0)} size ${Math.round(words[found].bbox.x1 - words[found].bbox.x0)}×${Math.round(words[found].bbox.y1 - words[found].bbox.y0)}`;
+  }
+  drawWordsOverlay();
+});
+
+/* ---------------------------
+  Auto-sample background color from bounding box
+----------------------------*/
+function sampleAverageColor(x,y,w,h){
+  // clamp
+  x = Math.max(0, Math.floor(x)); y = Math.max(0, Math.floor(y));
+  w = Math.max(1, Math.floor(w)); h = Math.max(1, Math.floor(h));
+  try{
+    const data = ctx.getImageData(x, y, Math.min(w, canvas.width-x), Math.min(h, canvas.height-y)).data;
+    let r=0,g=0,b=0,count=0;
+    for(let i=0;i<data.length;i+=4){
+      r+=data[i]; g+=data[i+1]; b+=data[i+2]; count++;
+    }
+    if(count===0) return '#ffffff';
+    r = Math.round(r/count); g = Math.round(g/count); b = Math.round(b/count);
+    return rgbToHex(r,g,b);
+  }catch(e){
+    return '#ffffff';
+  }
+}
+function rgbToHex(r,g,b){ return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join(''); }
+
+/* ---------------------------
+  Draw replacement (preview & final)
+----------------------------*/
+function redrawPreview(){
+  if(!imageLoaded) return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(img,0,0);
+  drawWordsOverlay();
+
+  if(selectedWord === null) return;
+  const w = words[selectedWord];
+  const x = w.bbox.x0, y = w.bbox.y0, W = w.bbox.x1 - w.bbox.x0, H = w.bbox.y1 - w.bbox.y0;
+
+  // background fill sample (auto)
+  const sampled = sampleAverageColor(x,y,W,H);
+
+  // font details
+  const size = parseInt(sizeRange.value,10) || Math.round(H*0.9);
+  const weight = boldCheckbox.checked ? '700' : '400';
+  const style = italicCheckbox.checked ? 'italic' : 'normal';
+  const fontStr = `${style} ${weight} ${size}px "${currentFont}", Arial`;
+
+  // draw background fill rect with slight padding
+  ctx.fillStyle = bgColorInput.value || sampled;
+  ctx.fillRect(x-2, y-2, W+4, H+4);
+
+  // draw text
+  ctx.fillStyle = textColorInput.value || '#000';
+  ctx.textBaseline = 'alphabetic';
+  ctx.font = fontStr;
+  // try to center vertically better:
+  const drawY = y + H - Math.max(3, Math.round(H*0.12));
+  // if text too wide, scale down the font to fit
+  let measure = ctx.measureText(newTextInput.value || w.text || '');
+  if(measure.width > W){
+    // reduce size proportionally
+    const ratio = W / measure.width;
+    const newSize = Math.max(6, Math.round(size * ratio));
+    ctx.font = `${style} ${weight} ${newSize}px "${currentFont}", Arial`;
+  }
+  ctx.fillText(newTextInput.value || w.text || '', x+2, drawY);
+}
+
+/* live update on controls */
+[newTextInput, textColorInput, bgColorInput, boldCheckbox, italicCheckbox, sizeRange].forEach(el=>{
+  el.addEventListener('input', ()=> redrawPreview());
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Enter'){ replaceSelected(); } });
+
+/* replace final button */
+replaceBtn.addEventListener('click', ()=> replaceSelected());
+autoSizeBtn.addEventListener('click', ()=>{
+  if(selectedWord === null) return alert('Select a word first by clicking it on the image.');
+  const w = words[selectedWord];
+  const H = w.bbox.y1 - w.bbox.y0;
+  sizeRange.value = Math.round(H*0.9);
+  redrawPreview();
+});
+
+/* final replacement function (draws onto image permanently) */
+function replaceSelected(){
+  if(!imageLoaded) return alert('Load image first.');
+  if(selectedWord === null) return alert('Select a detected word by clicking it on the image.');
+  const w = words[selectedWord];
+  const x = w.bbox.x0, y = w.bbox.y0, W = w.bbox.x1 - w.bbox.x0, H = w.bbox.y1 - w.bbox.y0;
+
+  // background fill
+  const sampled = sampleAverageColor(x,y,W,H);
+  ctx.fillStyle = bgColorInput.value || sampled;
+  ctx.fillRect(x-2, y-2, W+4, H+4);
+
+  // draw new text
+  const size = parseInt(sizeRange.value,10) || Math.round(H*0.9);
+  const weight = boldCheckbox.checked ? '700' : '400';
+  const style = italicCheckbox.checked ? 'italic' : 'normal';
+  ctx.fillStyle = textColorInput.value || '#000';
+  ctx.font = `${style} ${weight} ${size}px "${currentFont}", Arial`;
+  ctx.textBaseline = 'alphabetic';
+  const drawY = y + H - Math.max(3, Math.round(H*0.12));
+  // if width > area, shrink
+  let measure = ctx.measureText(newTextInput.value || w.text || '');
+  if(measure.width > W){
+    const ratio = W / measure.width;
+    const newSize = Math.max(6, Math.round(size * ratio));
+    ctx.font = `${style} ${weight} ${newSize}px "${currentFont}", Arial`;
+  }
+  ctx.fillText(newTextInput.value || w.text || '', x+2, drawY);
+
+  // update the underlying image (snap)
+  const dataURL = canvas.toDataURL('image/png');
+  img.src = dataURL; // now canvas image becomes base img for future edits
+  // re-run OCR on the updated image (optional)
+  status('Replaced. Re-running OCR to refresh boxes...');
+  Tesseract.recognize(img.src, 'eng').then(res=>{
+    words = res.data.words || [];
+    selectedWord = null;
+    selectedInfo.textContent = 'No selection';
+    selMeta.textContent = '';
+    status('OCR refreshed. Words: ' + words.length);
+    drawWordsOverlay();
+  }).catch(()=>{ drawWordsOverlay(); status('Done — OCR refresh failed (not critical).');});
+}
+
+/* ---------------------------
+  Helpers
+----------------------------*/
+function status(s){
+  statusDiv.textContent = s;
+  // auto-hide status after a bit
+  setTimeout(()=>{ if(statusDiv.textContent === s) statusDiv.textContent = ''; }, 7000);
+}
+
+/* initial canvas empty message */
+ctx.font = "14px Inter, Arial";
+ctx.fillStyle = "rgba(255,255,255,0.06)";
+ctx.fillText("Upload an image to begin", 30, 30);
 </script>
 </body>
 </html>
