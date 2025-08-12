@@ -1,326 +1,95 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html>
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Image Text Replacer — Auto Detect & Size</title>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.5/dist/tesseract.min.js"></script>
-<script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
-<style>
-  :root{--card-bg:rgba(255,255,255,0.06);--glass:rgba(255,255,255,0.04)}
-  *{box-sizing:border-box}
-  body{margin:0;min-height:100vh;font-family:Inter,Arial;background:
-  radial-gradient(circle at 10% 10%, #0f172a 0%, #071028 40%, #04060a 100%);color:#e6eef8;
-  display:flex;gap:20px;align-items:flex-start;justify-content:center;padding:28px;}
-  .panel{width:420px;background:var(--card-bg);border-radius:14px;padding:18px;backdrop-filter:blur(6px);
-    box-shadow:0 8px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
-  h1{margin:0 0 12px;font-size:20px}
-  label{display:block;font-size:13px;margin:8px 0 6px;color:#cfe0ff}
-  input[type=file]{width:100%}
-  .controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center}
-  select,input[type=color],input[type=text],button,.small-btn{width:100%;padding:8px 10px;border-radius:8px;border:none;font-size:14px;background:var(--glass);color:inherit}
-  .row{display:flex;gap:8px}
-  button{cursor:pointer;background:linear-gradient(135deg,#6a11cb,#2575fc);color:white;font-weight:700;border-radius:10px;padding:10px}
-  .canvas-wrap{flex:1;max-width:900px;display:flex;flex-direction:column;align-items:center;gap:10px}
-  canvas{border-radius:8px;max-width:100%;box-shadow:0 10px 30px rgba(0,0,0,0.6)}
-  .meta{font-size:13px;color:#9fb7ff}
-  .fonts-list{height:140px;overflow:auto;background:rgba(0,0,0,0.08);padding:8px;border-radius:8px}
-  .font-item{padding:6px;cursor:pointer;border-radius:6px;margin-bottom:4px}
-  .font-item:hover{outline:2px solid rgba(255,255,255,0.06)}
-  .selected{outline:2px solid rgba(255,255,255,0.12)}
-  .small{font-size:13px;padding:6px}
-  .footer{font-size:12px;color:#9fb7ff;margin-top:8px}
-  .topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
-  .loading{font-size:13px;color:#ffd580}
-</style>
+    <title>Image Text Overlay</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: #1e1e1e;
+            color: white;
+        }
+        canvas {
+            border: 1px solid white;
+            margin-top: 10px;
+        }
+        input, button {
+            margin-top: 10px;
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
 </head>
 <body>
 
-<div class="panel">
-  <div class="topbar">
-    <h1>Auto Text Replacer</h1>
-    <div class="meta">Auto-detect & size • 100+ fonts</div>
-  </div>
-
-  <label>Upload image</label>
-  <input id="imageUpload" type="file" accept="image/*">
-
-  <label>New text (will be used for all detected words)</label>
-  <input id="newText" type="text" placeholder="Type replacement text">
-
-  <div style="display:flex;gap:8px;margin-top:8px;">
-    <div style="flex:1">
-      <label>Text color</label>
-      <input id="textColor" type="color" value="#000000">
-    </div>
-    <div style="width:110px">
-      <label>Background fill</label>
-      <input id="bgColor" type="color" value="#ffffff">
-    </div>
-  </div>
-
-  <div class="row" style="margin-top:10px;">
-    <div style="flex:1">
-      <label>Weight / Style</label>
-      <div style="display:flex;gap:8px;">
-        <label class="small"><input id="bold" type="checkbox"> Bold</label>
-        <label class="small"><input id="italic" type="checkbox"> Italic</label>
-      </div>
-    </div>
-    <div style="width:160px">
-      <label>Force max size (px) — 0 = auto</label>
-      <input id="forceMax" type="number" min="0" value="0" style="width:100%;padding:8px;border-radius:8px;background:var(--glass)">
-    </div>
-  </div>
-
-  <label style="margin-top:10px">Font (click to load & select)</label>
-  <div class="fonts-list" id="fontsList"></div>
-
-  <div style="display:flex;gap:8px;margin-top:12px;">
-    <button id="autoReplaceAll">Auto Replace All</button>
-    <button id="replaceSelected" class="small-btn">Replace Selected</button>
-  </div>
-
-  <div class="footer">Tip: Auto Replace All sizes text automatically to each detected box. Click canvas boxes to fine tune single words.</div>
-  <div style="height:8px"></div>
-  <div id="status" class="loading"></div>
-</div>
-
-<div class="canvas-wrap">
-  <div style="display:flex;gap:10px;align-items:center;">
-    <div style="background:var(--card-bg);padding:8px 12px;border-radius:10px;">
-      <strong id="selectedInfo">No selection</strong> <div class="meta" id="selMeta"></div>
-    </div>
-  </div>
-  <canvas id="canvas"></canvas>
-  <div class="meta">Upload → OCR → click a box OR press <b>Auto Replace All</b>.</div>
-</div>
+<h2>Image Text Overlay Tool</h2>
+<input type="file" id="imageUpload" accept="image/*"><br>
+<input type="text" id="textInput" placeholder="Enter text to overlay"><br>
+<button onclick="addText()">Add Text</button>
+<button onclick="downloadImage()">Download Image</button>
+<br>
+<canvas id="canvas"></canvas>
 
 <script>
-/* ---------- Fonts (list) ---------- */
-const fonts = [
-"Roboto","Open Sans","Lato","Montserrat","Poppins","Raleway","Oswald","Merriweather","Ubuntu","PT Sans",
-"Source Sans Pro","Noto Sans","Playfair Display","Nunito","Dancing Script","Pacifico","Anton","Bebas Neue",
-"Fira Sans","Rubik","Work Sans","Comfortaa","Cinzel","Bitter","Cabin","Exo 2","Alegreya","Inconsolata",
-"Barlow","Kanit","Quicksand","Muli","Heebo","Libre Baskerville","Satisfy","Varela Round","Josefin Sans","Hind",
-"Catamaran","Amatic SC","Cormorant Garamond","Pinyon Script","Oleo Script","Signika","Teko","Archivo","Baloo 2",
-"Manrope","Play","Mukta","Patua One","Shadows Into Light","Titillium Web","Zilla Slab","Epilogue","Inter",
-"IBM Plex Sans","Vollkorn","Orbitron","Maven Pro","Domine","Overpass","Fruktur","Yanone Kaffeesatz","Alice",
-"Trirong","Arvo","Spectral","Righteous","Monda","Lora","Fjalla One","Sora","Yeseva One","Poppins"
-];
-const uniqFonts = [...new Set(fonts)];
+    let canvas = document.getElementById("canvas");
+    let ctx = canvas.getContext("2d");
+    let uploadedImage = null;
 
-const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
-const imageUpload = document.getElementById('imageUpload');
-const newTextInput = document.getElementById('newText');
-const textColorInput = document.getElementById('textColor');
-const bgColorInput = document.getElementById('bgColor');
-const boldCheckbox = document.getElementById('bold');
-const italicCheckbox = document.getElementById('italic');
-const fontsListDiv = document.getElementById('fontsList');
-const autoReplaceAllBtn = document.getElementById('autoReplaceAll');
-const replaceSelectedBtn = document.getElementById('replaceSelected');
-const statusDiv = document.getElementById('status');
-const selectedInfo = document.getElementById('selectedInfo');
-const selMeta = document.getElementById('selMeta');
-const forceMaxInput = document.getElementById('forceMax');
-
-let img = new Image();
-let imgDataURL = null;
-let imageLoaded = false;
-let words = [];
-let selectedWord = null;
-let loadedFonts = new Set();
-let currentFont = 'Arial';
-
-function status(s){ statusDiv.textContent = s; setTimeout(()=>{ if(statusDiv.textContent===s) statusDiv.textContent='';},6000); }
-
-/* build font list */
-function buildFontsList(){
-  uniqFonts.forEach(f=>{
-    const div = document.createElement('div');
-    div.className = 'font-item';
-    div.textContent = f;
-    div.addEventListener('click', ()=> selectFont(f,div));
-    fontsListDiv.appendChild(div);
-  });
-}
-buildFontsList();
-
-function selectFont(fontName, el){
-  status('Loading font: '+fontName);
-  if(!loadedFonts.has(fontName)){
-    WebFont.load({
-      google:{families:[fontName+':400,700']},
-      active: function(){ loadedFonts.add(fontName); currentFont=fontName; document.querySelectorAll('.font-item').forEach(n=>n.classList.remove('selected')); el.classList.add('selected'); status('Font loaded: '+fontName); redrawPreview(); },
-      inactive: function(){ currentFont=fontName; el.classList.add('selected'); status('Font load failed, using fallback'); redrawPreview(); }
+    document.getElementById("imageUpload").addEventListener("change", function (e) {
+        let reader = new FileReader();
+        reader.onload = function (event) {
+            let img = new Image();
+            img.onload = function () {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+                uploadedImage = img;
+            }
+            img.src = event.target.result;
+        }
+        reader.readAsDataURL(e.target.files[0]);
     });
-  } else {
-    currentFont = fontName;
-    document.querySelectorAll('.font-item').forEach(n=>n.classList.remove('selected'));
-    el.classList.add('selected');
-    status('Font selected: '+fontName);
-    redrawPreview();
-  }
-}
 
-/* upload image and OCR */
-imageUpload.addEventListener('change', e=>{
-  const f = e.target.files[0]; if(!f) return;
-  const reader = new FileReader();
-  reader.onload = function(ev){ img.src = ev.target.result; imgDataURL = ev.target.result; img.onload = function(){ setupCanvas(); runOCR(imgDataURL); } }
-  reader.readAsDataURL(f);
-});
+    function addText() {
+        if (!uploadedImage) {
+            alert("Please upload an image first!");
+            return;
+        }
 
-function setupCanvas(){
-  canvas.width = img.width; canvas.height = img.height;
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.drawImage(img,0,0);
-  imageLoaded = true; words=[]; selectedWord=null;
-  selectedInfo.textContent='No selection'; selMeta.textContent='';
-}
+        let text = document.getElementById("textInput").value;
+        if (!text) {
+            alert("Please enter some text!");
+            return;
+        }
 
-/* OCR */
-function runOCR(src){
-  status('Running OCR...');
-  Tesseract.recognize(src,'eng',{logger:m=>{ if(m.status && m.progress) status(`${m.status} ${(m.progress*100|0)}%`) }})
-  .then(res=>{ words = res.data.words || []; status('OCR done: '+words.length+' words'); drawWordsOverlay(); })
-  .catch(err=>{ console.error(err); status('OCR failed'); });
-}
+        ctx.drawImage(uploadedImage, 0, 0); // Reset image
 
-function drawWordsOverlay(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.drawImage(img,0,0);
-  ctx.lineWidth = Math.max(1, canvas.width/600);
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-  ctx.fillStyle = 'rgba(90,120,255,0.04)';
-  words.forEach((w,i)=>{
-    const x=w.bbox.x0, y=w.bbox.y0, W=w.bbox.x1-w.bbox.x0, H=w.bbox.y1-w.bbox.y0;
-    ctx.fillRect(x,y,W,H); ctx.strokeRect(x,y,W,H);
-    ctx.font = `${Math.max(10, Math.round(H*0.35))}px Arial`; ctx.fillStyle='rgba(255,255,255,0.6)';
-    ctx.fillText(w.text, x+4, y + Math.max(12, Math.round(H*0.7)));
-  });
-  if(selectedWord!==null && words[selectedWord]){ const s=words[selectedWord]; ctx.strokeStyle='rgba(255,200,100,0.95)'; ctx.lineWidth=Math.max(2,canvas.width/300); ctx.strokeRect(s.bbox.x0-2,s.bbox.y0-2,(s.bbox.x1-s.bbox.x0)+4,(s.bbox.y1-s.bbox.y0)+4); }
-}
+        // Auto size text based on image width
+        let fontSize = Math.floor(canvas.width / (text.length * 0.6));
+        fontSize = Math.max(fontSize, 20); // Minimum font size
 
-/* canvas click selection preserved */
-canvas.addEventListener('click', e=>{
-  if(!imageLoaded) return;
-  const r = canvas.getBoundingClientRect();
-  const cx = (e.clientX - r.left) * (canvas.width / r.width);
-  const cy = (e.clientY - r.top) * (canvas.height / r.height);
-  let found = null;
-  for(let i=0;i<words.length;i++){ const w=words[i]; if(cx>=w.bbox.x0 && cx<=w.bbox.x1 && cy>=w.bbox.y0 && cy<=w.bbox.y1){ found=i; break; } }
-  if(found===null){ selectedWord=null; selectedInfo.textContent='No selection'; selMeta.textContent=''; } else { selectedWord=found; selectedInfo.textContent='Selected: "'+words[found].text+'"'; selMeta.textContent=`Box: ${Math.round(words[found].bbox.x0)},${Math.round(words[found].bbox.y0)} size ${Math.round(words[found].bbox.x1-words[found].bbox.x0)}×${Math.round(words[found].bbox.y1-words[found].bbox.y0)}`; }
-  drawWordsOverlay();
-});
+        ctx.font = fontSize + "px Arial";
+        ctx.fillStyle = "white";
+        ctx.textAlign = "center";
+        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+    }
 
-/* Helper: sample avg color in box */
-function sampleAverageColor(x,y,w,h){
-  x=Math.max(0,Math.floor(x)); y=Math.max(0,Math.floor(y)); w=Math.max(1,Math.floor(w)); h=Math.max(1,Math.floor(h));
-  try{ const data=ctx.getImageData(x,y,Math.min(w,canvas.width-x),Math.min(h,canvas.height-y)).data; let r=0,g=0,b=0,c=0; for(let i=0;i<data.length;i+=4){ r+=data[i]; g+=data[i+1]; b+=data[i+2]; c++; } if(c===0) return '#ffffff'; r=Math.round(r/c); g=Math.round(g/c); b=Math.round(b/c); return rgbToHex(r,g,b); } catch(e){ return '#ffffff'; }
-}
-function rgbToHex(r,g,b){ return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join(''); }
-
-/* Auto-fit font size for a given text and box:
-   start at box height, reduce if width exceeds box width.
-   also ensure not bigger than forceMax (if provided).
-*/
-function fitFontSizeToBox(text, boxW, boxH, style, weight, fontFamily, forceMax=0){
-  // start with max size allowed by height (use 90% of height)
-  let size = Math.max(6, Math.floor(boxH * 0.9));
-  if(forceMax>0 && forceMax < size) size = forceMax;
-  // try and reduce until it fits width
-  ctx.font = `${style} ${weight} ${size}px "${fontFamily}", Arial`;
-  let measure = ctx.measureText(text).width;
-  // quick shrink loop
-  let iterations = 0;
-  while(measure > boxW - 6 && size > 6 && iterations < 60){
-    size = Math.max(6, Math.floor(size * (boxW / measure) * 0.98));
-    ctx.font = `${style} ${weight} ${size}px "${fontFamily}", Arial`;
-    measure = ctx.measureText(text).width;
-    iterations++;
-  }
-  return size;
-}
-
-/* Replace one word (permanently draw) */
-function replaceWordAtIndex(i, replacement){
-  const w = words[i];
-  const x = w.bbox.x0, y = w.bbox.y0, W = w.bbox.x1 - w.bbox.x0, H = w.bbox.y1 - w.bbox.y0;
-  const sampled = sampleAverageColor(x,y,W,H);
-  ctx.fillStyle = bgColorInput.value || sampled;
-  ctx.fillRect(x-2, y-2, W+4, H+4);
-  const style = italicCheckbox.checked ? 'italic' : 'normal';
-  const weight = boldCheckbox.checked ? '700' : '400';
-  const text = replacement || newTextInput.value || w.text || '';
-  const forceMax = parseInt(forceMaxInput.value || '0', 10) || 0;
-  const size = fitFontSizeToBox(text, W-4, H, style, weight, currentFont, forceMax);
-  ctx.fillStyle = textColorInput.value || '#000';
-  ctx.font = `${style} ${weight} ${size}px "${currentFont}", Arial`;
-  ctx.textBaseline = 'alphabetic';
-  const drawY = y + H - Math.max(3, Math.round(H*0.12));
-  ctx.fillText(text, x+2, drawY);
-}
-
-/* Auto Replace All: iterate all words and replace */
-autoReplaceAllBtn.addEventListener('click', ()=>{
-  if(!imageLoaded) return alert('Load an image first.');
-  if(words.length===0) return alert('No text detected by OCR.');
-  if(!newTextInput.value) return alert('Enter replacement text first.');
-  status('Auto replacing all words...');
-  // redraw original to start fresh
-  ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(img,0,0);
-  for(let i=0;i<words.length;i++){
-    replaceWordAtIndex(i, newTextInput.value);
-  }
-  // update underlying image so further edits are on top of replaced image
-  const dataURL = canvas.toDataURL('image/png');
-  img.src = dataURL;
-  img.onload = ()=>{ runOCR(img.src); status('Auto replace complete.'); }
-});
-
-/* Replace Selected (keeps previous manual behavior) */
-replaceSelectedBtn.addEventListener('click', ()=>{
-  if(!imageLoaded) return alert('Load an image first.');
-  if(selectedWord===null) return alert('Select a word on the image first (click a box).');
-  replaceWordAtIndex(selectedWord);
-  const dataURL = canvas.toDataURL('image/png');
-  img.src = dataURL;
-  img.onload = ()=>{ runOCR(img.src); status('Replaced selected word.'); }
-});
-
-/* redraw preview while choosing fonts/colors */
-function redrawPreview(){
-  if(!imageLoaded) return;
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.drawImage(img,0,0);
-  drawWordsOverlay();
-  if(selectedWord===null) return;
-  // preview replacement on selected
-  const w = words[selectedWord];
-  const x=w.bbox.x0,y=w.bbox.y0,W=w.bbox.x1-w.bbox.x0,H=w.bbox.y1-w.bbox.y0;
-  const sampled = sampleAverageColor(x,y,W,H);
-  ctx.fillStyle = bgColorInput.value || sampled;
-  ctx.fillRect(x-2, y-2, W+4, H+4);
-  const style = italicCheckbox.checked ? 'italic' : 'normal';
-  const weight = boldCheckbox.checked ? '700' : '400';
-  const text = newTextInput.value || w.text || '';
-  const size = fitFontSizeToBox(text, W-4, H, style, weight, currentFont, parseInt(forceMaxInput.value||'0',10) || 0);
-  ctx.fillStyle = textColorInput.value || '#000';
-  ctx.font = `${style} ${weight} ${size}px "${currentFont}", Arial`;
-  ctx.textBaseline = 'alphabetic';
-  const drawY = y + H - Math.max(3, Math.round(H*0.12));
-  ctx.fillText(text, x+2, drawY);
-}
-
-[newTextInput, textColorInput, bgColorInput, boldCheckbox, italicCheckbox, forceMaxInput].forEach(el=>el.addEventListener('input', ()=> redrawPreview()));
-
-/* initial message */
-ctx.font = "14px Inter, Arial";
-ctx.fillStyle = "rgba(255,255,255,0.06)";
-ctx.fillText("Upload an image to begin",30,30);
+    function downloadImage() {
+        let link = document.createElement('a');
+        link.download = 'image_with_text.png';
+        link.href = canvas.toDataURL();
+        link.click();
+    }
 </script>
+
 </body>
 </html>
